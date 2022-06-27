@@ -43,7 +43,7 @@ setInterval(async () => {
     .toArray()
   participantesInvalidos.forEach(async participante => {
     mensagensSaida.from = participante.name
-    await db.collection('mensagens').insertOne(mensagensSaida)
+    await db.collection('mensagens').insertMany(mensagensSaida)
   })
   await db
     .collection('participantes')
