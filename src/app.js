@@ -222,22 +222,16 @@ app.put('/messages/:ID_DA_MENSAGEM', async (req, res) => {
     return
   }
   try {
+    const validou = participanteSchema.validate({ name: user })
+    if (!validou) {
+      res.sendStatus(404)
+      return
+    }
     const dadosMensagem = {
       from: user,
       ...bodyMensagem,
       time: dayjs().format('HH:mm:ss')
     }
-    await db.collection('mensagens').insertOne(dadosMensagem)
-    res.sendStatus(201)
-  } catch (error) {
-    res.sendStatus(422)
-  }
-  const validou = participanteSchema.validate({ name: user })
-  if (!validou) {
-    res.sendStatus(404)
-    return
-  }
-  try {
     const mensagemExiste = await db
       .collection('mensagens')
       .findOne({ _id: ObjectId(idMensagem) })
@@ -258,6 +252,8 @@ app.put('/messages/:ID_DA_MENSAGEM', async (req, res) => {
         $set: { from: donoMensagem.text }
       }
     )
+    await db.collection('mensagens').insertOne(dadosMensagem)
+    res.sendStatus(201)
   } catch (error) {
     res.sendStatus(422)
     return
