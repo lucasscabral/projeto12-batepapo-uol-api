@@ -26,7 +26,7 @@ const mensagensSchema = joi.object({
   text: joi.string().required(),
   type: joi.string().required()
 })
-
+// FUNÇÃO DE EXCLUIR PARTICIPANTES INATIVOS
 setInterval(async () => {
   const mensagensSaida = {
     from: '',
@@ -50,6 +50,7 @@ setInterval(async () => {
     .deleteMany({ lastStatus: { $lt: tempoIvalido } })
 }, 15000)
 
+// END-POINTS DE PARTICIPANTS
 app.get('/participants', async (req, res) => {
   const { user } = req.headers
   const userExiste = await db
@@ -107,7 +108,7 @@ app.post('/participants', async (req, res) => {
     res.send(422)
   }
 })
-
+// END-POINTS DE MESSAGENS
 app.get('/messages', async (req, res) => {
   const { user } = req.headers
 
@@ -197,6 +198,72 @@ app.delete('/messages/:ID_DA_MENSAGEM', async (req, res) => {
     await db.collection('mensagens').deleteOne({ _id: ObjectId(idMensagem) })
   } catch (error) {}
 })
+app.put('/messages/:ID_DA_MENSAGEM', async (req, res) => {
+  const idMensagem = req.params.ID_DA_MENSAGEM
+  const { user } = req.headers
+  const userExiste = await db
+    .collection('participantes')
+    .findOne({ name: user })
+  if (!userExiste) {
+    res.sendStatus(422)
+    return
+  }
+
+  const bodyMensagem = req.body
+  if (bodyMensagem.type !== 'message') {
+    if (bodyMensagem.type !== 'private_message') {
+      res.status(422).send('So pode ser message ou private_message')
+      return
+    }
+  }
+  const validar = mensagensSchema.validate(bodyMensagem)
+  if (validar.error) {
+    res.sendStatus(422)
+    return
+  }
+  try {
+    const dadosMensagem = {
+      from: user,
+      ...bodyMensagem,
+      time: dayjs().format('HH:mm:ss')
+    }
+    await db.collection('mensagens').insertOne(dadosMensagem)
+    res.sendStatus(201)
+  } catch (error) {
+    res.sendStatus(422)
+  }
+  const validou = participanteSchema.validate({ name: user })
+  if (!validou) {
+    res.sendStatus(404)
+    return
+  }
+  try {
+    const mensagemExiste = await db
+      .collection('mensagens')
+      .findOne({ _id: ObjectId(idMensagem) })
+    if (!mensagemExiste) {
+      res.sendStatus(404)
+      return
+    }
+    const donoMensagem = await db
+      .collection('mensagens')
+      .findOne({ _id: ObjectId(idMensagem), from: user })
+    if (!donoMensagem) {
+      res.sendStatus(401)
+      return
+    }
+    await db.collection('mensagens').updateOne(
+      { _id: ObjectId(idMensagem) },
+      {
+        $set: { from: donoMensagem.text }
+      }
+    )
+  } catch (error) {
+    res.sendStatus(422)
+    return
+  }
+})
+// END-POINTS DE STATUS
 app.post('/status', async (req, res) => {
   const { user } = req.headers
 
